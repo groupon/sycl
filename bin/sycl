@@ -1,0 +1,184 @@
+#!/usr/bin/env ruby
+# sycl - command line YAML manipulation tool using Sycl library
+# Andrew Ho (ho@groupon.com)
+#
+# Copyright (c) 2012, Groupon, Inc.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#
+# Redistributions of source code must retain the above copyright notice,
+# this list of conditions and the following disclaimer.
+#
+# Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+# Neither the name of GROUPON nor the names of its contributors may be
+# used to endorse or promote products derived from this software without
+# specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+# TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+require 'optparse'
+require 'sycl'
+require 'pp'
+
+$ME    = File.basename $0
+$USAGE = "usage: #$ME [-h] [-i] [-y] program [file1 [file2 ...]]"
+$HELP  = <<"EndHelp"
+
+#$USAGE
+
+#$ME is a command line utility to run Ruby code on one or more YAML files.
+It is similar to awk, but instead of processing lines of a file, it reads
+full files as YAML; and instead of using awk language, you write Ruby code
+which works with the data parsed from YAML.
+
+The required first argument is a literal Ruby program. When this code is
+run, the following variables are available:
+
+    f    filename of the file being parsed
+    y    the YAML text that was parsed
+    d    data parsed from interpreting YAML
+
+The d variable is a Sycl object (https://github.com/andrewgho/sycl)
+This lets you access hashes with dot notation (for example, the lookup
+d['foo']['bar'] can be written as d.foo.bar), including safe variants
+with get() and set() methods (d.get('foo.bar') returns nil instead of
+dying if d['foo'] does not exist). YAML output is sorted.
+
+Options:
+    -h, --help       display this help text and exit
+    -i, --inplace    overwrite YAML files in place if d is modified
+    -y, --yaml       output return value of program as YAML
+
+Examples:
+    sycl 'puts "\#{d.hostname} \#{d.interfaces.eth0.inet[0]}"' host*.yml
+    sycl -i 'd.params.ntp_servers = %w{ns1 ns2}' host2.yml
+    sycl -y d unsorted.yml > sorted.yml
+
+EndHelp
+
+def main(argv)
+  in_place = false
+  yaml_output = false
+  opts = OptionParser.new do |opts|
+    opts.on('-h', '--help')    { puts $HELP; exit 0 }
+    opts.on('-i', '--inplace') { in_place = true }
+    opts.on('-y', '--yaml')    { yaml_output = true }
+    begin
+      opts.parse! argv
+    rescue OptionParser::InvalidOption => e
+      abort "#$ME: #{e}\n#$USAGE"
+    end
+  end
+  abort "#$ME: missing required program\n#$USAGE" if argv.empty?
+  code = argv.shift
+  options = {}
+  if argv.empty?
+    abort "#$ME: cannot modify stdin in place" if in_place
+    $stderr.puts "#$ME: waiting for input from stdin..." if $stdin.tty?
+    retval = sycl_process code, $stdin, 'stdin'
+    puts retval.to_yaml if retval && yaml_output
+  else
+    modified = []
+    argv.each do |filename|
+      begin
+        fh = File.open filename
+        retval, new_data = sycl_process code, fh, filename
+        fh.close
+      rescue Errno::ENOENT, Errno::EACCES => e
+        abort "#$ME: could not open file: #{e}"
+      end
+      if in_place && new_data
+        output = new_data.to_yaml
+        output.sub! /^\-\-\- \n/, ''
+        output.gsub! /: $/m, ':'
+        begin
+          tmpfile = "#{filename}.tmp.#$$"
+          tmp = File.open tmpfile, 'w'
+          tmp.puts output
+          tmp.close
+          File.rename tmpfile, filename
+          modified << filename
+        ensure
+          begin
+            File.unlink tmpfile
+          rescue
+          end
+        end
+      end
+      puts retval.to_yaml if retval && yaml_output
+    end
+  end
+  0
+end
+
+
+# sycl_process(code, fh, filename) loads YAML from opened filehandle fh
+# into a local variable y, parses it as a Sycl object into d, and runs
+# the code string on it; the optional filename is used for error
+# reporting, and also exposed as f. It returns the return value from the
+# code that was run, and the new data structure, if it was modified.
+
+def sycl_process(code, fh, f = nil)
+  begin
+    y = fh.read
+    d_orig = Sycl::load y
+    d = Sycl::load y
+  rescue Exception => e
+    abort "#$ME: could not parse YAML from #{f || 'unknown file'}: #{e}"
+  end
+  begin
+    retval = eval code
+  rescue Exception => e
+    abort "#$ME: program error while processing #{f || 'unknown file'}: #{e}"
+  end
+  prune_nil_values! d_orig
+  prune_nil_values! d
+  if d_orig.to_yaml == d.to_yaml
+    return [ retval ]
+  else
+    return [ retval, d ]
+  end
+end
+
+
+# Walk hashes and arrays, and delete any nil values.
+
+def prune_nil_values!(o)
+  if o.is_a? Hash
+    o.keys.each do |k|
+      if o[k].nil?
+        o.delete k
+      else
+        o[k] = prune_nil_values o[k]
+        o.delete k if o[k].nil?
+      end
+    end
+    o
+  elsif o.is_a? Array
+    o.reject { |e| e.nil? }
+    o.collect! { |e| prune_nil_values e }
+  else
+    o
+  end
+end
+
+
+# Run main loop and exit
+
+exit main ARGV
