@@ -48,8 +48,8 @@ module Sycl
   end
 
   def self.dump(object)
-    if (object.is_a?(Hash)  && !object.is_a?(SyclHash)) ||
-       (object.is_a?(Array) && !object.is_a?(SyclArray))
+    if (object.is_a?(::Hash)  && !object.is_a?(Sycl::Hash)) ||
+       (object.is_a?(::Array) && !object.is_a?(Sycl::Array))
       sycl_version = from_object object
       sycl_version.to_yaml
     else
@@ -60,24 +60,24 @@ module Sycl
   private
 
   def self.from_object(o)
-    if o.is_a?(Hash)
-      SyclHash.from_hash(o)
-    elsif o.is_a?(Array)
-      SyclArray.from_array(o)
+    if o.is_a?(::Hash)
+      Sycl::Hash.from_hash(o)
+    elsif o.is_a?(::Array)
+      Sycl::Array.from_array(o)
     else
       o
     end
   end
 
 
-  # A SyclArray is like an Array, but creating one from an array blesses
-  # any child Array or Hash objects into SyclArray or SyclHash objects.
+  # A Sycl::Array is like an Array, but creating one from an array blesses
+  # any child Array or Hash objects into Sycl::Array or Sycl::Hash objects.
   #
-  # SyclArrays support YAML preprocessing and postprocessing, and having
+  # Sycl::Arrays support YAML preprocessing and postprocessing, and having
   # individual nodes marked as being rendered in inline style. YAML
   # output is also always sorted.
 
-  class SyclArray < Array
+  class Array < ::Array
     def initialize(*args)
       @yaml_preprocessor = nil
       @yaml_postprocessor = nil
@@ -86,11 +86,11 @@ module Sycl
     end
 
     def self.load_file(f)
-      SyclArray.from_array YAML::load_file f
+      Sycl::Array.from_array YAML::load_file f
     end
 
     def self.from_array(a)
-      retval = SyclArray.new
+      retval = Sycl::Array.new
       a.each { |e| retval << Sycl::from_object(e) }
       retval
     end
@@ -102,14 +102,16 @@ module Sycl
 
     def []=(*args)
       raise ArgumentError => 'wrong number of arguments' unless args.size > 1
-      unless args[-1].is_a?(SyclHash) || args[-1].is_a?(SyclArray)
+      unless args[-1].is_a?(Sycl::Hash) || args[-1].is_a?(Sycl::Array)
         args[-1] = Sycl::from_object(args[-1])
       end
       super
     end
 
     def <<(e)
-      e = Sycl::from_object(e) unless e.is_a?(SyclHash) || e.is_a?(SyclArray)
+      unless e.is_a?(Sycl::Hash) || e.is_a?(Sycl::Array)
+        e = Sycl::from_object(e)
+      end
       super
     end
 
@@ -119,7 +121,7 @@ module Sycl
     alias_method :map!, :collect!
 
     def concat(a)
-      a = SyclArray.from_array(a) unless a.is_a?(SyclArray)
+      a = Sycl::Array.from_array(a) unless a.is_a?(Sycl::Array)
       super
     end
 
@@ -128,7 +130,7 @@ module Sycl
       if block_given?
         super { |idx| Sycl::from_object(block.call idx) }
       else
-        unless args[0].is_a?(SyclHash) || args[0].is_a?(SyclArray)
+        unless args[0].is_a?(Sycl::Hash) || args[0].is_a?(Sycl::Array)
           args[0] = Sycl::from_object(args[0])
         end
         super
@@ -138,7 +140,9 @@ module Sycl
     def insert(i, *args)
       raise ArgumentError => 'wrong number of arguments' if args.empty?
       args.collect! do |o|
-        o = Sycl::from_object(o) unless o.is_a?(SyclHash) || o.is_a?(SyclArray)
+        unless o.is_a?(Sycl::Hash) || o.is_a?(Sycl::Array)
+          o = Sycl::from_object(o)
+        end
       end
       super
     end
@@ -146,20 +150,24 @@ module Sycl
     def push(*args)
       raise ArgumentError => 'wrong number of arguments' if args.empty?
       args.collect! do |o|
-        o = Sycl::from_object(o) unless o.is_a?(SyclHash) || o.is_a?(SyclArray)
+        unless o.is_a?(Sycl::Hash) || o.is_a?(Sycl::Array)
+          o = Sycl::from_object(o)
+        end
       end
       super
     end
 
     def replace(a)
-      a = SyclArray.from_array(a) unless a.is_a?(SyclArray)
+      a = Sycl::Array.from_array(a) unless a.is_a?(Sycl::Array)
       super
     end
 
     def unshift(*args)
       raise ArgumentError => 'wrong number of arguments' if args.empty?
       args.collect! do |o|
-        o = Sycl::from_object(o) unless o.is_a?(SyclHash) || o.is_a?(SyclArray)
+        unless o.is_a?(Sycl::Hash) || o.is_a?(Sycl::Array)
+          o = Sycl::from_object(o)
+        end
       end
       super
     end
@@ -200,7 +208,7 @@ module Sycl
 
     # The Psych YAML engine has a bug that results in infinite recursion
     # if to_yaml is over-ridden on a non-native type.  So, we fake out
-    # Psych and pretend SyclArray is a native type.
+    # Psych and pretend Sycl::Array is a native type.
 
     class MockNativeType
       def source_location
@@ -244,8 +252,8 @@ module Sycl
   end
 
 
-  # A SyclHash is like a Hash, but creating one from an hash blesses
-  # any child Array or Hash objects into SyclArray or SyclHash objects.
+  # A Sycl::Hash is like a Hash, but creating one from an hash blesses
+  # any child Array or Hash objects into Sycl::Array or Sycl::Hash objects.
   #
   # Hash contents can be accessed via "dot notation" (h.foo.bar means
   # the same as h['foo']['bar']). However, h.foo.bar dies if h['foo']
@@ -254,11 +262,11 @@ module Sycl
   # There is also a convenient deep_merge() that is like Hash#merge(),
   # but also descends into and merges child nodes of the new hash.
   #
-  # SyclHashes support YAML preprocessing and postprocessing, and having
+  # Sycl::Hashes support YAML preprocessing and postprocessing, and having
   # individual nodes marked as being rendered in inline style. YAML
   # output is also always sorted by key.
 
-  class SyclHash < Hash
+  class Hash < ::Hash
 
     def initialize(*args)
       @yaml_preprocessor = nil
@@ -268,11 +276,11 @@ module Sycl
     end
 
     def self.load_file(f)
-      SyclHash.from_hash YAML::load_file f
+      Sycl::Hash.from_hash YAML::load_file f
     end
 
     def self.from_hash(h)
-      retval = SyclHash.new
+      retval = Sycl::Hash.new
       h.each { |k, v| retval[k] = Sycl::from_object(v) }
       retval
     end
@@ -283,13 +291,15 @@ module Sycl
     # and other Sycl goodies continue.
 
     def []=(k, v)
-      v = Sycl::from_object(v) unless v.is_a?(SyclHash) || v.is_a?(SyclArray)
+      unless v.is_a?(Sycl::Hash) || v.is_a?(Sycl::Array)
+        v = Sycl::from_object(v)
+      end
       super
     end
     alias_method :store, :[]=
 
     def merge!(h)
-      h = SyclHash.from_hash(h) unless h.is_a?(SyclHash)
+      h = Sycl::Hash.from_hash(h) unless h.is_a?(Sycl::Hash)
       super
     end
     alias_method :update, :merge!
@@ -344,10 +354,10 @@ module Sycl
       target = self
       while path.size > 1
         key = path.shift
-        if !(target.key?(key) && target[key].is_a?(Hash))
-          target[key] = SyclHash.new
+        if !(target.key?(key) && target[key].is_a?(::Hash))
+          target[key] = Sycl::Hash.new
         else
-          target[key] = SyclHash.from_hash(target[key])
+          target[key] = Sycl::Hash.from_hash(target[key])
         end
         target = target[key]
       end
@@ -360,10 +370,10 @@ module Sycl
 
     def deep_merge(h)
       self.merge(h) do |key, v1, v2|
-        if v1.is_a?(Hash) && v2.is_a?(SyclHash)
+        if v1.is_a?(::Hash) && v2.is_a?(Sycl::Hash)
           self[key].deep_merge(v2)
-        elsif v1.is_a?(Hash) && v2.is_a?(Hash)
-          self[key].deep_merge(SyclHash.from_hash(v2))
+        elsif v1.is_a?(::Hash) && v2.is_a?(::Hash)
+          self[key].deep_merge(Sycl::Hash.from_hash(v2))
         else
           self[key] = Sycl::from_object(v2)
         end
@@ -371,7 +381,7 @@ module Sycl
     end
 
 
-    # Make SyclHashes sortable alongside SyclHashes and Strings.
+    # Make Sycl::Hashes sortable alongside Sycl::Hashes and Strings.
     # This makes YAML output in sorted order work.
 
     include Comparable
@@ -420,7 +430,7 @@ module Sycl
 
     # The Psych YAML engine has a bug that results in infinite recursion
     # if to_yaml is over-ridden on a non-native type.  So, we fake out
-    # Psych and pretend SyclArray is a native type.
+    # Psych and pretend Sycl::Hash is a native type.
 
     class MockNativeType
       def source_location
