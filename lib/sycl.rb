@@ -85,6 +85,10 @@ module Sycl
       super
     end
 
+    def self.[](*args)
+      Sycl::Array.from_array super
+    end
+
     def self.load_file(f)
       Sycl::Array.from_array YAML::load_file f
     end
@@ -273,6 +277,10 @@ module Sycl
       @yaml_postprocessor = nil
       @yaml_style = nil
       super
+    end
+
+    def self.[](*args)
+      Sycl::Hash.from_hash super
     end
 
     def self.load_file(f)
