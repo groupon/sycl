@@ -33,14 +33,14 @@
 
 Gem::Specification.new do |s|
   s.name        = 'sycl'
-  s.version     = '1.0'
-  s.date        = '2012-03-23'
+  s.version     = '1.1'
+  s.date        = '2012-04-11'
   s.summary     = 'Simple YAML Config Library'
   s.description =
    'This library makes using YAML for configuration files convenient and easy.'
   s.authors     = ['Andrew Ho']
-  s.email       = 'rubygems@andrew.zeuscat.com'
+  s.email       = 'ho@groupon.com'
   s.files       = ['lib/sycl.rb']
   s.executables << 'sycl'
-  s.homepage    = 'http://zeuscat.com/andrew/sycl'
+  s.homepage    = 'http://github.com/groupon/sycl'
 end
