@@ -159,8 +159,8 @@ you'd delete user `charlie` from all hosts:
 Meta
 ----
 
-* Home: <https://github.com/andrewgho/sycl>
-* Bugs: <https://github.com/andrewgho/sycl/issues>
+* Home: <https://github.com/groupon/sycl>
+* Bugs: <https://github.com/groupon/sycl/issues>
 * Authors: <https://github.com/andrewgho>
 
 ### Prior Art ###

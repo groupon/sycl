@@ -54,7 +54,7 @@ run, the following variables are available:
     y    the YAML text that was parsed
     d    data parsed from interpreting YAML
 
-The d variable is a Sycl object (https://github.com/andrewgho/sycl)
+The d variable is a Sycl object (https://github.com/groupon/sycl)
 This lets you access hashes with dot notation (for example, the lookup
 d['foo']['bar'] can be written as d.foo.bar), including safe variants
 with get() and set() methods (d.get('foo.bar') returns nil instead of
