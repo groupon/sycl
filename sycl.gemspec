@@ -33,7 +33,7 @@
 
 Gem::Specification.new do |s|
   s.name        = 'sycl'
-  s.version     = '1.1'
+  s.version     = '1.2'
   s.date        = '2012-04-11'
   s.summary     = 'Simple YAML Config Library'
   s.description =
@@ -42,5 +42,5 @@ Gem::Specification.new do |s|
   s.email       = 'ho@groupon.com'
   s.files       = ['lib/sycl.rb']
   s.executables << 'sycl'
-  s.homepage    = 'http://github.com/groupon/sycl'
+  s.homepage    = 'https://github.com/groupon/sycl'
 end
