@@ -1,5 +1,9 @@
-# sycl.rb - Simple YAML Configuration Library
-# Andrew Ho (ho@groupon.com)
+# = sycl.rb - Simple YAML Configuration Library
+#
+# For more details, visit the
+# {Sycl GitHub page}[https://github.com/groupon/sycl/"target="_parent].
+#
+# == License
 #
 # Copyright (c) 2012, Groupon, Inc.
 # All rights reserved.
@@ -33,19 +37,43 @@
 
 require 'yaml'
 
+# = sycl.rb - Simple YAML Configuration Library
+#
+# Sycl is a gem that makes using YAML[http://yaml.org/] for
+# configuration files convenient and easy. Hashes and arrays made from
+# parsing YAML via Sycl get helper methods that provide simple and natural
+# syntax for querying and setting values. YAML output through Sycl is
+# sorted, so configuration file versions can be compared consistently, and
+# Sycl has hooks to add output styles, so your configuration files stay
+# easy for humans to read and edit, even after being parsed and
+# re-emitted.
+#
+# For more details, visit the
+# {Sycl GitHub page}[https://github.com/groupon/sycl/"target="_parent].
+
 module Sycl
 
-  # Sycl::load(yaml), Sycl::load_file(filename), and Sycl::dump(object)
-  # function just like their YAML counterparts, but return and act on
-  # Sycl-blessed variants of Hashes and Arrays.
+  # Sycl::load(yaml) is the Sycl counterpart to YAML::load(yaml). It
+  # accepts YAML text, and returns a Sycl::Hash or Sycl::Array object
+  # representing the parsed YAML.
 
   def self.load(yaml)
     from_object YAML::load(yaml)
   end
 
+  # Sycl::load(filename) is the Sycl counterpart to
+  # YAML::load_file(filename). It accepts a filename, and returns a
+  # Sycl::Hash or Sycl::Array object representing the parsed YAML from
+  # that file.
+
   def self.load_file(filename)
     from_object YAML::load_file(filename)
   end
+
+  # Sycl::dump(object) is the Sycl counterpart to YAML::dump(object). It
+  # takes a Sycl::Hash or a Sycl::Array, and renders it as YAML. Sycl
+  # YAML output is always sorted in canonical order, so you can parse
+  # and re-emit data in a reliable way.
 
   def self.dump(object)
     if (object.is_a?(::Hash)  && !object.is_a?(Sycl::Hash)) ||
@@ -70,32 +98,56 @@ module Sycl
   end
 
 
-  # A Sycl::Array is like an Array, but creating one from an array blesses
-  # any child Array or Hash objects into Sycl::Array or Sycl::Hash objects.
+  # A Sycl::Array is like an Array, but creating one from an array
+  # blesses any child Array or Hash objects into Sycl::Array or
+  # Sycl::Hash objects. All the normal Array methods are supported,
+  # and automatically promote any inputs into Sycl equivalents. The
+  # following example illustrates this:
   #
-  # Sycl::Arrays support YAML preprocessing and postprocessing, and having
-  # individual nodes marked as being rendered in inline style. YAML
-  # output is also always sorted.
+  #   h = { 'a' => { 'b' => 'Hello, world!' } }
+  #   a = Sycl::Array.new
+  #   a << h
+  #
+  #   puts a.first.a.b   # outputs 'Hello, world!'
+  #
+  # A Sycl::Array supports YAML preprocessing and postprocessing, and
+  # having individual nodes marked as being rendered in inline style.
+  # YAML output is also always sorted.
+  #
+  #   a = Sycl::Array.from_array %w{bravo delta charlie alpha}
+  #   a.render_inline!
+  #   a.yaml_preprocessor { |x| x.each { |e| e.capitalize! } }
+  #   a.yaml_postprocessor { |yaml| yaml.sub(/\A---\s+/, '') }
+  #
+  #   puts a.first    # outputs 'bravo'
+  #   puts a.to_yaml  # outputs '[Alpha, Bravo, Charlie, Delta]'
 
   class Array < ::Array
-    def initialize(*args)
+    def initialize(*args)  # :nodoc:
       @yaml_preprocessor = nil
       @yaml_postprocessor = nil
       @yaml_style = nil
       super
     end
 
-    def self.[](*args)
+    def self.[](*args)  # :nodoc:
       Sycl::Array.from_array super
     end
 
-    def self.load_file(f)
-      Sycl::Array.from_array YAML::load_file f
+    # Like Sycl::load_file(), a shortcut method to create a Sycl::Array
+    # from loading and parsing YAML from a file.
+
+    def self.load_file(filename)
+      Sycl::Array.from_array YAML::load_file filename
     end
 
-    def self.from_array(a)
+    # Create a Sycl::Array from a normal Array, or, really, any object
+    # that supports Enumerable#each(). Every child Array or Hash gets
+    # promoted to a Sycl::Array or Sycl::Hash.
+
+    def self.from_array(array)  # :nodoc:
       retval = Sycl::Array.new
-      a.each { |e| retval << Sycl::from_object(e) }
+      array.each { |e| retval << Sycl::from_object(e) }
       retval
     end
 
@@ -104,7 +156,7 @@ module Sycl
     # to their Sycl equivalents. This lets dot notation, styled YAML,
     # and other Sycl goodies continue.
 
-    def []=(*args)
+    def []=(*args)  # :nodoc:
       raise ArgumentError => 'wrong number of arguments' unless args.size > 1
       unless args[-1].is_a?(Sycl::Hash) || args[-1].is_a?(Sycl::Array)
         args[-1] = Sycl::from_object(args[-1])
@@ -112,24 +164,27 @@ module Sycl
       super
     end
 
-    def <<(e)
+    def <<(e)  # :nodoc:
       unless e.is_a?(Sycl::Hash) || e.is_a?(Sycl::Array)
         e = Sycl::from_object(e)
       end
       super
     end
 
-    def collect!(&block)
+    def collect!(&block)  # :nodoc:
       super { |o| Sycl::from_object(block.call o) }
     end
-    alias_method :map!, :collect!
 
-    def concat(a)
+    def map!(&block)  # :nodoc:
+      super { |o| Sycl::from_object(block.call o) }
+    end
+
+    def concat(a)  # :nodoc:
       a = Sycl::Array.from_array(a) unless a.is_a?(Sycl::Array)
       super
     end
 
-    def fill(*args, &block)
+    def fill(*args, &block)  # :nodoc:
       raise ArgumentError => 'wrong number of arguments' if args.empty?
       if block_given?
         super { |idx| Sycl::from_object(block.call idx) }
@@ -141,7 +196,7 @@ module Sycl
       end
     end
 
-    def insert(i, *args)
+    def insert(i, *args)  # :nodoc:
       raise ArgumentError => 'wrong number of arguments' if args.empty?
       args.collect! do |o|
         unless o.is_a?(Sycl::Hash) || o.is_a?(Sycl::Array)
@@ -151,7 +206,7 @@ module Sycl
       super
     end
 
-    def push(*args)
+    def push(*args)  # :nodoc:
       raise ArgumentError => 'wrong number of arguments' if args.empty?
       args.collect! do |o|
         unless o.is_a?(Sycl::Hash) || o.is_a?(Sycl::Array)
@@ -161,12 +216,12 @@ module Sycl
       super
     end
 
-    def replace(a)
+    def replace(a)  # :nodoc:
       a = Sycl::Array.from_array(a) unless a.is_a?(Sycl::Array)
       super
     end
 
-    def unshift(*args)
+    def unshift(*args)  # :nodoc:
       raise ArgumentError => 'wrong number of arguments' if args.empty?
       args.collect! do |o|
         unless o.is_a?(Sycl::Hash) || o.is_a?(Sycl::Array)
@@ -177,12 +232,34 @@ module Sycl
     end
 
 
-    # Make this array, or its children, rendered in inline/flow style YAML.
+    # Make this array, and its children, rendered in inline/flow style.
     # The default is to render arrays in block (multi-line) style.
+    #
+    # Example:
+    #
+    #   a = Sycl::Array::from_array %w{one two}
+    #   a.yaml_postprocessor { |yaml| yaml.sub(/\A---\s+/, '') }
+    #
+    #   puts a.to_yaml  # output: "- one\n- two"
+    #   a.render_inline!
+    #   puts a.to_yaml  # output: '[one, two]'
 
     def render_inline!
       @yaml_style = :inline
     end
+
+    # Keep rendering this array in block (multi-line) style, but, make
+    # this array's children rendered in inline/flow style.
+    #
+    # Example:
+    #
+    #   a = Sycl::Array::from_array ['one', {'two' => ['three']}]
+    #   a.yaml_postprocessor { |yaml| yaml.sub(/\A---\s+/, '') }
+    #
+    #   a.render_values_inline!
+    #   puts a.to_yaml  # output: "- one\n- two: [three]"
+    #   a.render_inline!
+    #   puts a.to_yaml  # output: '[one, {two: [three]}]'
 
     def render_values_inline!
       self.each do |e|
@@ -191,21 +268,42 @@ module Sycl
     end
 
 
-    # Hooks to run before and after YAML dumping
+    # Set a preprocessor hook which runs before each time YAML is
+    # dumped, for example, via to_yaml() or Sycl::dump(). The hook is a
+    # block that gets the object itself as an argument. The hook can
+    # then set render_inline!() or similar style arguments, prune nil or
+    # empty leaf values from hashes, or do whatever other styling needs
+    # to be done before a Sycl object is rendered as YAML.
 
     def yaml_preprocessor(&block)
       @yaml_preprocessor = block if block_given?
     end
 
+    # Set a postprocessor hook which runs after YML is dumped, for
+    # example, via to_yaml() or Sycl::dump(). The hook is a block that
+    # gets the YAML text string as an argument, and returns a new,
+    # possibly different, YAML text string.
+    #
+    # A common example use case is to suppress the initial document
+    # separator, which is just visual noise when humans are viewing or
+    # editing a single YAML file:
+    #
+    #   a.yaml_postprocessor { |yaml| yaml.sub(/\A---\s+/, '') }
+    #
+    # Your conventions might also prohibit trailing whitespace, which at
+    # least the Syck library will tack on the end of YAML hash keys:
+    #
+    #   a.yaml_postprocessor { |yaml| yaml.gsub(/:\s+$/, '') }
+
     def yaml_postprocessor(&block)
       @yaml_postprocessor = block if block_given?
     end
 
-    def yaml_preprocess!
+    def yaml_preprocess!  # :nodoc:
       @yaml_preprocessor.call(self) if @yaml_preprocessor
     end
 
-    def yaml_postprocess(yaml)
+    def yaml_postprocess(yaml)  # :nodoc:
       @yaml_postprocessor ? @yaml_postprocessor.call(yaml) : yaml
     end
 
@@ -214,34 +312,31 @@ module Sycl
     # if to_yaml is over-ridden on a non-native type.  So, we fake out
     # Psych and pretend Sycl::Array is a native type.
 
-    class MockNativeType
+    class MockNativeType  # :nodoc:
       def source_location
         ['psych/core_ext.rb']
       end
     end
 
-    def method(sym)
+    def method(sym)  # :nodoc:
       sym == :to_yaml ? MockNativeType.new : super
     end
 
 
-    # YAML rendering overrides: run preprocessing and postprocessing,
-    # set flow/inline style if this node is marked accordingly, sort
-    # elements, and suppress taguri on output. For Psych, set a long line
-    # width to more or less suppress line wrap.
-
-    if defined?(YAML::ENGINE) && YAML::ENGINE.yamler == 'psych'
-      def encode_with(coder)
-        coder.style = Psych::Nodes::Sequence::FLOW if @yaml_style == :inline
-        coder.represent_seq nil, sort
-      end
-    end
+    # Render this object as YAML. Before rendering, run the object
+    # through any yaml_preprocessor() code block. After rendering,
+    # filter the YAML text through any yaml_postprocessor() code block.
+    #
+    # Nodes marked with render_inline!() or render_values_inline!()
+    # will be output in flow/inline style, all hashes and arrays will
+    # be sorted, and we set a long line width to more or less support
+    # line wrap under the Psych library.
 
     def to_yaml(opts = {})
       yaml_preprocess!
       if defined?(YAML::ENGINE) && YAML::ENGINE.yamler == 'psych'
         opts ||= {}
-        opts[:line_width] ||= 999999
+        opts[:line_width] ||= 999999  # Psych doesn't let you disable line wrap
         yaml = super
       else
         yaml = YAML::quick_emit(self, opts) do |out|
@@ -253,11 +348,26 @@ module Sycl
       yaml_postprocess yaml
     end
 
+    if defined?(YAML::ENGINE) && YAML::ENGINE.yamler == 'psych'
+      def encode_with(coder)  # :nodoc:
+        coder.style = Psych::Nodes::Sequence::FLOW if @yaml_style == :inline
+        coder.represent_seq nil, sort
+      end
+    end
+
   end
 
 
   # A Sycl::Hash is like a Hash, but creating one from an hash blesses
-  # any child Array or Hash objects into Sycl::Array or Sycl::Hash objects.
+  # any child Array or Hash objects into Sycl::Array or Sycl::Hash
+  # objects. All the normal Hash methods are supported, and
+  # automatically promote any inputs into Sycl equivalents. The
+  # following example illustrates this:
+  #
+  #   h = Sycl::Hash.new
+  #   h['a'] = { 'b' => { 'c' => 'Hello, world!' } }
+  #
+  #   puts h.a.b.c   # outputs 'Hello, world!'
   #
   # Hash contents can be accessed via "dot notation" (h.foo.bar means
   # the same as h['foo']['bar']). However, h.foo.bar dies if h['foo']
@@ -266,26 +376,41 @@ module Sycl
   # There is also a convenient deep_merge() that is like Hash#merge(),
   # but also descends into and merges child nodes of the new hash.
   #
-  # Sycl::Hashes support YAML preprocessing and postprocessing, and having
-  # individual nodes marked as being rendered in inline style. YAML
-  # output is also always sorted by key.
+  # A Sycl::Hash supports YAML preprocessing and postprocessing, and
+  # having individual nodes marked as being rendered in inline style.
+  # YAML output is also always sorted by key.
+  #
+  #   h = Sycl::Hash.from_hash({'b' => 'bravo', 'a' => 'alpha'})
+  #   h.render_inline!
+  #   h.yaml_preprocessor { |x| x.values.each { |e| e.capitalize! } }
+  #   h.yaml_postprocessor { |yaml| yaml.sub(/\A---\s+/, '') }
+  #
+  #   puts h['a']        # outputs 'alpha'
+  #   puts h.keys.first  # outputs 'a' or 'b' depending on Hash order
+  #   puts h.to_yaml     # outputs '{a: Alpha, b: Bravo}'
 
   class Hash < ::Hash
 
-    def initialize(*args)
+    def initialize(*args)  # :nodoc:
       @yaml_preprocessor = nil
       @yaml_postprocessor = nil
       @yaml_style = nil
       super
     end
 
-    def self.[](*args)
+    def self.[](*args)  # :nodoc:
       Sycl::Hash.from_hash super
     end
+
+    # Like Sycl::load_file(), a shortcut method to create a Sycl::Hash
+    # from loading and parsing YAML from a file.
 
     def self.load_file(f)
       Sycl::Hash.from_hash YAML::load_file f
     end
+
+    # Create a Sycl::Array from a normal Hash or Hash-like object. Every
+    # child Array or Hash gets promoted to a Sycl::Array or Sycl::Hash.
 
     def self.from_hash(h)
       retval = Sycl::Hash.new
@@ -298,19 +423,29 @@ module Sycl
     # to their Sycl equivalents. This lets dot notation, styled YAML,
     # and other Sycl goodies continue.
 
-    def []=(k, v)
+    def []=(k, v)  # :nodoc:
       unless v.is_a?(Sycl::Hash) || v.is_a?(Sycl::Array)
         v = Sycl::from_object(v)
       end
       super
     end
-    alias_method :store, :[]=
 
-    def merge!(h)
+    def store(k, v)  # :nodoc:
+      unless v.is_a?(Sycl::Hash) || v.is_a?(Sycl::Array)
+        v = Sycl::from_object(v)
+      end
+      super
+    end
+
+    def merge!(h)  # :nodoc:
       h = Sycl::Hash.from_hash(h) unless h.is_a?(Sycl::Hash)
       super
     end
-    alias_method :update, :merge!
+
+    def update(h)  # :nodoc:
+      h = Sycl::Hash.from_hash(h) unless h.is_a?(Sycl::Hash)
+      super
+    end
 
 
     # Allow method call syntax: h.foo.bar.baz == h['foo']['bar']['baz'].
@@ -394,21 +529,36 @@ module Sycl
 
     include Comparable
 
-    def <=>(another)
+    def <=>(another)  # :nodoc:
       self.to_str <=> another.to_str
     end
 
-    def to_str
+    def to_str  # :nodoc:
       self.keys.sort.first
     end
 
 
-    # Make this hash, or its children, rendered in inline/flow style YAML.
-    # The default is to render hashes in block (multi-line) style.
+    # Make this hash, and its children, rendered in inline/flow style.
+    # The default is to render arrays in block (multi-line) style.
 
     def render_inline!
       @yaml_style = :inline
     end
+
+    # Keep rendering this hash in block (multi-line) style, but, make
+    # this array's children rendered in inline/flow style.
+    #
+    # Example:
+    #
+    #   h = Sycl::Hash.new
+    #   h['one'] = 'two'
+    #   h['three'] = %w{four five}
+    #   h.yaml_postprocessor { |yaml| yaml.sub(/\A---\s+/, '') }
+    #
+    #   h.render_values_inline!
+    #   puts h.to_yaml  # output: "one: two\nthree: [five four]"
+    #   h.render_inline!
+    #   puts h.to_yaml  # output: '{one: two, three: [five four]}'
 
     def render_values_inline!
       self.values.each do |v|
@@ -417,21 +567,42 @@ module Sycl
     end
 
 
-    # Hooks to run before and after YAML dumping
+    # Set a preprocessor hook which runs before each time YAML is
+    # dumped, for example, via to_yaml() or Sycl::dump(). The hook is a
+    # block that gets the object itself as an argument. The hook can
+    # then set render_inline!() or similar style arguments, prune nil or
+    # empty leaf values from hashes, or do whatever other styling needs
+    # to be done before a Sycl object is rendered as YAML.
 
     def yaml_preprocessor(&block)
       @yaml_preprocessor = block if block_given?
     end
 
+    # Set a postprocessor hook which runs after YML is dumped, for
+    # example, via to_yaml() or Sycl::dump(). The hook is a block that
+    # gets the YAML text string as an argument, and returns a new,
+    # possibly different, YAML text string.
+    #
+    # A common example use case is to suppress the initial document
+    # separator, which is just visual noise when humans are viewing or
+    # editing a single YAML file:
+    #
+    #   a.yaml_postprocessor { |yaml| yaml.sub(/\A---\s+/, '') }
+    #
+    # Your conventions might also prohibit trailing whitespace, which at
+    # least the Syck library will tack on the end of YAML hash keys:
+    #
+    #   a.yaml_postprocessor { |yaml| yaml.gsub(/:\s+$/, '') }
+
     def yaml_postprocessor(&block)
       @yaml_postprocessor = block if block_given?
     end
 
-    def yaml_preprocess!
+    def yaml_preprocess!  # :nodoc:
       @yaml_preprocessor.call(self) if @yaml_preprocessor
     end
 
-    def yaml_postprocess(yaml)
+    def yaml_postprocess(yaml)  # :nodoc:
       @yaml_postprocessor ? @yaml_postprocessor.call(yaml) : yaml
     end
 
@@ -440,34 +611,31 @@ module Sycl
     # if to_yaml is over-ridden on a non-native type.  So, we fake out
     # Psych and pretend Sycl::Hash is a native type.
 
-    class MockNativeType
+    class MockNativeType  # :nodoc:
       def source_location
         ['psych/core_ext.rb']
       end
     end
 
-    def method(sym)
+    def method(sym)  # :nodoc:
       sym == :to_yaml ? MockNativeType.new : super
     end
 
 
-    # YAML rendering overrides: run preprocessing and postprocessing,
-    # set flow/inline style if this node is marked accordingly, sort by
-    # key, and suppress taguri on output. For Psych, set a long line
-    # width to more or less suppress line wrap.
-
-    if defined?(YAML::ENGINE) && YAML::ENGINE.yamler == 'psych'
-      def encode_with(coder)
-        coder.style = Psych::Nodes::Mapping::FLOW if @yaml_style == :inline
-        coder.represent_map nil, sort
-      end
-    end
+    # Render this object as YAML. Before rendering, run the object
+    # through any yaml_preprocessor() code block. After rendering,
+    # filter the YAML text through any yaml_postprocessor() code block.
+    #
+    # Nodes marked with render_inline!() or render_values_inline!()
+    # will be output in flow/inline style, all hashes and arrays will
+    # be sorted, and we set a long line width to more or less support
+    # line wrap under the Psych library.
 
     def to_yaml(opts = {})
       yaml_preprocess!
       if defined?(YAML::ENGINE) && YAML::ENGINE.yamler == 'psych'
         opts ||= {}
-        opts[:line_width] ||= 999999
+        opts[:line_width] ||= 999999  # Psych doesn't let you disable line wrap
         yaml = super
       else
         yaml = YAML::quick_emit(self, opts) do |out|
@@ -477,6 +645,13 @@ module Sycl
         end
       end
       yaml_postprocess yaml
+    end
+
+    if defined?(YAML::ENGINE) && YAML::ENGINE.yamler == 'psych'
+      def encode_with(coder)  # :nodoc:
+        coder.style = Psych::Nodes::Mapping::FLOW if @yaml_style == :inline
+        coder.represent_map nil, sort
+      end
     end
 
   end
