@@ -30,7 +30,7 @@ Use it in Ruby code as a YAML library replacement:
     d.bar = 'baz'
     puts d.to_yaml
 
-Run it from the command line to get `yawk` style YAML processing:
+Run it from the command line to get `awk` style YAML processing:
 
     $ sycl 'puts d.foo' bar.yml
 
@@ -128,7 +128,7 @@ rendered one per line.
 
 ### Command-Line Sycl Processing ###
 
-Sycl includes a command line `sycl` tool which is like `yawk`, but for
+Sycl includes a command line `sycl` tool which is like `awk`, but for
 processing YAML files with Ruby, with Sycl syntax built in. You run it
 on one or more YAML files like in the following example:
 
@@ -172,6 +172,6 @@ access to hash values, or merge YAML files across directories:
 * [hashie](https://github.com/intridea/hashie)
 
 Sycl is unique in its emphasis on sorted, comparable output; and its
-ability to style YAML output by node, and in providing a `yawk`-like
+ability to style YAML output by node, and in providing a `awk`-like
 tool to directly manipulate YAML from the command line using the compact
 Sycl syntax.
