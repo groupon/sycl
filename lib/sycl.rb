@@ -112,7 +112,8 @@ module Sycl
   #
   # A Sycl::Array supports YAML preprocessing and postprocessing, and
   # having individual nodes marked as being rendered in inline style.
-  # YAML output is also always sorted.
+  # YAML output is always sorted, unless individual nodes are marked
+  # as being rendered unsorted.
   #
   #   a = Sycl::Array.from_array %w{bravo delta charlie alpha}
   #   a.render_inline!
@@ -127,6 +128,7 @@ module Sycl
       @yaml_preprocessor = nil
       @yaml_postprocessor = nil
       @yaml_style = nil
+      @render_sorted = true
       super
     end
 
@@ -268,6 +270,16 @@ module Sycl
     end
 
 
+    # Do not sort this array when it is rendered as YAML. Usually we want
+    # elements sorted so that diffs are human-readable, however, there are
+    # certain cases where array ordering is significant (for example, a
+    # sorted list of queues).
+
+    def render_unsorted!
+      @render_sorted = false
+    end
+
+
     # Set a preprocessor hook which runs before each time YAML is
     # dumped, for example, via to_yaml() or Sycl::dump(). The hook is a
     # block that gets the object itself as an argument. The hook can
@@ -340,8 +352,14 @@ module Sycl
         yaml = super
       else
         yaml = YAML::quick_emit(self, opts) do |out|
-          out.seq(nil, @yaml_style || to_yaml_style) do |seq|
-            sort.each { |e| seq.add(e) }
+          if @render_sorted
+            out.seq(nil, @yaml_style || to_yaml_style) do |seq|
+              sort.each { |e| seq.add(e) }
+            end
+          else
+            out.seq(nil, @yaml_style || to_yaml_style) do |seq|
+              each { |e| seq.add(e) }
+            end
           end
         end
       end
