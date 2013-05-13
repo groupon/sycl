@@ -547,14 +547,29 @@ module Sycl
 
     include Comparable
 
-    def <=>(another)  # :nodoc:
-      self.to_str <=> another.to_str
-    end
+    def <=>(other)  # :nodoc:
+      self_keys = self.keys.sort
+      other_keys = other.respond_to?(:keys) ?  other.keys.sort :
+                   other.respond_to?(:sort) ?  other.sort      :
+                   other.respond_to?(:to_s) ? [other.to_s]     :
+                   other                    ? [other]          : []
 
-    def to_str  # :nodoc:
-      self.keys.sort.first
+      while true
+        if self_keys.empty? && other_keys.empty?
+          return 0
+        elsif self_keys.empty?
+          return 1
+        elsif other_keys.empty?
+          return -1
+        else
+          self_key = self_keys.shift
+          other_key = other_keys.shift
+          if self_key != other_key
+            return self_key <=> other_key
+          end
+        end
+      end
     end
-
 
     # Make this hash, and its children, rendered in inline/flow style.
     # The default is to render arrays in block (multi-line) style.
@@ -672,5 +687,17 @@ module Sycl
       end
     end
 
+  end
+end
+
+class String
+  alias_method :original_comparator, :<=>
+
+  def <=>(other)
+    if other.is_a?(Sycl::Hash)
+      -1 * (other <=> self)
+    else
+      self.__send__(:original_comparator, other)
+    end
   end
 end
