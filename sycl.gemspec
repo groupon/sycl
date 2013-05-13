@@ -33,7 +33,7 @@
 
 Gem::Specification.new do |s|
   s.name        = 'sycl'
-  s.version     = '1.3.1'
+  s.version     = '1.3.2'
   s.date        = '2013-05-13'
   s.summary     = 'Simple YAML Config Library'
   s.description =
