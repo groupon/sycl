@@ -66,4 +66,58 @@ class SyclTest < Test::Unit::TestCase
     assert_equal d.work_experience.groupon.company_name, 'Groupon, Inc.'
     assert_equal d['pets']['cats'], %w{moy momo}
   end
+
+  def test_arrays_sorted_by_default
+    sample = Sycl::load <<-EOS
+      elements:
+      - foo
+      - bar
+    EOS
+    parsed = Sycl::load sample.to_yaml
+    assert_equal parsed.elements, ['bar', 'foo']
+  end
+
+  def test_arrays_with_no_default_sorting
+    Sycl::Array.default_sorting = false
+    sample = Sycl::load <<-EOS
+      elements:
+      - foo
+      - bar
+    EOS
+    parsed = Sycl::load sample.to_yaml
+    assert_equal parsed.elements, ['foo', 'bar']
+    Sycl::Array.default_sorting = true
+  end
+
+  def test_render_unsorted
+    sample = Sycl::load <<-EOS
+      elements:
+      - foo
+      - bar
+      others:
+      - bbb
+      - aaa
+    EOS
+    sample.others.render_unsorted!
+    parsed = Sycl::load sample.to_yaml
+    assert_equal parsed.elements, ['bar', 'foo']
+    assert_equal parsed.others, ['bbb', 'aaa']
+  end
+
+  def test_render_sorted
+    Sycl::Array.default_sorting = false
+    sample = Sycl::load <<-EOS
+      elements:
+      - foo
+      - bar
+      others:
+      - bbb
+      - aaa
+    EOS
+    sample.others.render_sorted!
+    parsed = Sycl::load sample.to_yaml
+    assert_equal parsed.elements, ['foo', 'bar']
+    assert_equal parsed.others, ['aaa', 'bbb']
+    Sycl::Array.default_sorting = true
+  end
 end

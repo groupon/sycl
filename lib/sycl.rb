@@ -124,11 +124,14 @@ module Sycl
   #   puts a.to_yaml  # outputs '[Alpha, Bravo, Charlie, Delta]'
 
   class Array < ::Array
+
+    @@default_sorting = true
+
     def initialize(*args)  # :nodoc:
       @yaml_preprocessor = nil
       @yaml_postprocessor = nil
       @yaml_style = nil
-      @render_sorted = true
+      @render_sorted = @@default_sorting
       super
     end
 
@@ -151,6 +154,17 @@ module Sycl
       retval = Sycl::Array.new
       array.each { |e| retval << Sycl::from_object(e) }
       retval
+    end
+
+    # Set Default Array Sorting. In some cases we want to instantiate
+    # all sycl objects with sorting defaulted to either true or false.
+    #
+    # Example:
+    #
+    #   Sycl::Array.default_sorting = false
+
+    def self.default_sorting=(sort)
+      @@default_sorting = sort
     end
 
 
@@ -269,7 +283,6 @@ module Sycl
       end
     end
 
-
     # Do not sort this array when it is rendered as YAML. Usually we want
     # elements sorted so that diffs are human-readable, however, there are
     # certain cases where array ordering is significant (for example, a
@@ -279,6 +292,12 @@ module Sycl
       @render_sorted = false
     end
 
+    # Sort this array when it is rendered as YAML. Useful when the default_sorting
+    # has been set to false and arrays should be sorted.
+
+    def render_sorted!
+      @render_sorted = true
+    end
 
     # Set a preprocessor hook which runs before each time YAML is
     # dumped, for example, via to_yaml() or Sycl::dump(). The hook is a
