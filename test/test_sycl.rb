@@ -122,6 +122,12 @@ class SyclTest < Test::Unit::TestCase
   end
 
   def test_hash_sort
+    # Hashes are sorted by comparing keys (sort keys, compare arrays).
+    # If keys match, we do the same process with values, starting from
+    # the lexically first key. In the following example, we expect
+    # users to be sorted alice, bob, charlie, aaron because all keys
+    # match, "homedirs" is the lexically first key, so, the sort is
+    # by homedir.
     d = Sycl::load(<<-'end')
       users:
       - username: bob
