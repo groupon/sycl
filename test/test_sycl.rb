@@ -120,4 +120,34 @@ class SyclTest < Test::Unit::TestCase
     assert_equal parsed.others, ['aaa', 'bbb']
     Sycl::Array.default_sorting = true
   end
+
+  def test_hash_sort
+    # Hashes are sorted by comparing keys (sort keys, compare arrays).
+    # If keys match, we do the same process with values, starting from
+    # the lexically first key. In the following example, we expect
+    # users to be sorted alice, bob, charlie, aaron because all keys
+    # match, "homedirs" is the lexically first key, so, the sort is
+    # by homedir.
+    d = Sycl::load(<<-'end')
+      users:
+      - username: bob
+        uid: 1002
+        homedir: /home/bob
+      - username: alice
+        uid: 1003
+        homedir: /home/alice
+      - username: charlie
+        uid: 1001
+        homedir: /home/charlie
+      - username: aaron
+        uid: 500
+        homedir: /var/tmp/aaron
+    end
+    d.users.render_sorted!
+    d2 = YAML::load d.to_yaml
+    users = d2['users']
+    assert_equal users.size, 4
+    assert_equal 'alice', users.first['username']
+    assert_equal 'aaron', users[-1]['username']
+  end
 end
