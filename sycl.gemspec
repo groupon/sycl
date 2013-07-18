@@ -1,7 +1,7 @@
 # sycl.gemspec - RubyGems specification for Sycl library
 # Andrew Ho (ho@groupon.com)
 #
-# Copyright (c) 2012, Groupon, Inc.
+# Copyright (c) 2012-2013, Groupon, Inc.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,8 +33,8 @@
 
 Gem::Specification.new do |s|
   s.name        = 'sycl'
-  s.version     = '1.4'
-  s.date        = '2013-07-17'
+  s.version     = '1.5'
+  s.date        = '2013-07-18'
   s.summary     = 'Simple YAML Config Library'
   s.description =
    'This library makes using YAML for configuration files convenient and easy.'
@@ -43,4 +43,5 @@ Gem::Specification.new do |s|
   s.files       = ['lib/sycl.rb']
   s.executables << 'sycl'
   s.homepage    = 'https://github.com/groupon/sycl'
+  s.license     = 'New-BSD'
 end
