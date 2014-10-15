@@ -586,7 +586,7 @@ module Sycl
           if self_key != other_key
             return self_key <=> other_key
           elsif other.is_a?(Hash) && self[self_key] != other[other_key]
-            if self[self_ key].respond_to?(:<=>)
+            if self[self_key].respond_to?(:<=>)
               return self[self_key] <=> other[other_key]
             else
               return self[self_key].to_s <=> other[other_key].to_s
