@@ -1,7 +1,17 @@
 # = sycl.rb - Simple YAML Configuration Library
 #
+# Sycl is a gem that makes using YAML[http://yaml.org/] for
+# configuration files convenient and easy. Hashes and arrays made from
+# parsing YAML via Sycl get helper methods that provide simple and natural
+# syntax for querying and setting values. YAML output through Sycl is
+# sorted, so configuration file versions can be compared consistently, and
+# Sycl has hooks to add output styles, so your configuration files stay
+# easy for humans to read and edit, even after being parsed and
+# re-emitted.
+#
 # For more details, visit the
 # {Sycl GitHub page}[https://github.com/groupon/sycl/"target="_parent].
+# = sycl.rb - Simple YAML Configuration Library
 #
 # == License
 #
@@ -35,21 +45,15 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-require 'yaml'
+# sycl relies on the 'syck' YAML parser. Beginning with Ruby 2, syck
+# was removed from Ruby'd stdlib. This logic ensures the correct yaml
+# parser gets loaded if Rubies >= 2 are present.
 
-# = sycl.rb - Simple YAML Configuration Library
-#
-# Sycl is a gem that makes using YAML[http://yaml.org/] for
-# configuration files convenient and easy. Hashes and arrays made from
-# parsing YAML via Sycl get helper methods that provide simple and natural
-# syntax for querying and setting values. YAML output through Sycl is
-# sorted, so configuration file versions can be compared consistently, and
-# Sycl has hooks to add output styles, so your configuration files stay
-# easy for humans to read and edit, even after being parsed and
-# re-emitted.
-#
-# For more details, visit the
-# {Sycl GitHub page}[https://github.com/groupon/sycl/"target="_parent].
+if RUBY_VERSION.to_i >= 2
+  require 'syck'
+else
+  require 'yaml'
+end
 
 module Sycl
 
