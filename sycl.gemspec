@@ -33,8 +33,8 @@
 
 Gem::Specification.new do |s|
   s.name        = 'sycl'
-  s.version     = '1.5'
-  s.date        = '2013-07-18'
+  s.version     = '1.6'
+  s.date        = '2015-12-14'
   s.summary     = 'Simple YAML Config Library'
   s.description =
    'This library makes using YAML for configuration files convenient and easy.'
@@ -44,4 +44,5 @@ Gem::Specification.new do |s|
   s.executables << 'sycl'
   s.homepage    = 'https://github.com/groupon/sycl'
   s.license     = 'New-BSD'
+  s.requirements = 'syck must be the default YAML parsing library. For Rubies >= 2.0, the "syck" gem must be available'
 end
